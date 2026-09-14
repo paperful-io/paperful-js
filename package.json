@@ -1,7 +1,11 @@
 {
   "name": "@paperful/sdk",
+  "version": "1.0.0",
   "module": "index.ts",
   "type": "module",
+  "scripts": {
+    "api:generate": "bun run scripts/api.generate.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
