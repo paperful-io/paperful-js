@@ -2,6 +2,7 @@ import { Papers } from "./resources/papers";
 import { Search } from "./resources/search";
 import { Usage } from "./resources/usage";
 import { hydrateError, type DehydratedError } from "./utils/error";
+import { getEnvironmentVariable } from "./utils/env";
 
 /**
  * The base object for interacting with Paperful
@@ -26,9 +27,10 @@ export class Paperful {
      */
     apiKey?: string;
   } = {}) {
-    this.apiKey = apiKey || process.env.PAPERFUL_API_KEY;
+    this.apiKey = apiKey || getEnvironmentVariable("PAPERFUL_API_KEY");
     this.baseUrl =
-      process.env.PAPERFUL_BASE_URL || "https://api.paperful.io/v1";
+      getEnvironmentVariable("PAPERFUL_BASE_URL") ||
+      "https://api.paperful.io/v1";
 
     this.papers = new Papers(this);
     this.search = new Search(this);
