@@ -24,6 +24,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/papers/{id}/nodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Paper Nodes
+         * @description Returns a paginated list of paper nodes.
+         */
+        get: operations["listPaperGraphNodes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/papers/{id}/nodes/{nodeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Paper Node
+         * @description Returns a single paper node by its ID.
+         */
+        get: operations["getPaperGraphNode"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/papers/{id}/nodes/{nodeId}/context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Paper Node Context
+         * @description Returns the context of a paper node, including surrounding nodes.
+         */
+        get: operations["getPaperGraphNodeContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/papers": {
         parameters: {
             query?: never;
@@ -76,6 +136,36 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description The bounding box of the node */
+        Bbox: {
+            /** @description The x coordinate of the bbox */
+            x: number;
+            /** @description The y coordinate of the bbox */
+            y: number;
+            /** @description The width of the bbox */
+            w: number;
+            /** @description The height of the bbox */
+            h: number;
+        };
+        PaperNode: {
+            /** Format: uuid */
+            id: string;
+            /** @description The position of the node in the paper */
+            position: number;
+            /** @description The page number of the node in the paper */
+            page: number;
+            /**
+             * @description The type of the node
+             * @enum {string}
+             */
+            type: "unknown" | "abstract" | "algorithm" | "aside_text" | "chart" | "content" | "display_formula" | "doc_title" | "figure_title" | "footer" | "footer_image" | "footnote" | "formula_number" | "header" | "header_image" | "image" | "inline_formula" | "number" | "paragraph_title" | "reference" | "reference_content" | "seal" | "table" | "text" | "vertical_text" | "vision_footnote";
+            bbox: components["schemas"]["Bbox"];
+            /**
+             * Format: date-time
+             * @description The creation date of the node
+             */
+            created: string;
+        };
         /** @enum {string} */
         PaperStatus: "pending" | "ready" | "failed" | "deleted";
         /** @enum {string} */
@@ -151,9 +241,99 @@ export interface operations {
             };
         };
     };
-    listPapers: {
+    listPaperGraphNodes: {
+        parameters: {
+            query?: {
+                next?: string;
+                prev?: string;
+                page?: number;
+                type?: string | ("unknown" | "abstract" | "algorithm" | "aside_text" | "chart" | "content" | "display_formula" | "doc_title" | "figure_title" | "footer" | "footer_image" | "footnote" | "formula_number" | "header" | "header_image" | "image" | "inline_formula" | "number" | "paragraph_title" | "reference" | "reference_content" | "seal" | "table" | "text" | "vertical_text" | "vision_footnote")[];
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paper nodes retrieved successfully. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        total: number;
+                        items: components["schemas"]["PaperNode"][];
+                        cursor?: {
+                            next?: string;
+                            prev?: string;
+                        };
+                    };
+                };
+            };
+        };
+    };
+    getPaperGraphNode: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                nodeId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paper node retrieved successfully. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaperNode"];
+                };
+            };
+        };
+    };
+    getPaperGraphNodeContext: {
+        parameters: {
+            query?: {
+                before?: number;
+                after?: number;
+            };
+            header?: never;
+            path: {
+                nodeId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paper nodes retrieved successfully. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaperNode"];
+                };
+            };
+        };
+    };
+    listPapers: {
+        parameters: {
+            query?: {
+                next?: string;
+                prev?: string;
+                collectionId?: string;
+                fileName?: string;
+                archived?: string;
+                view?: "archived" | "bin";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -180,7 +360,10 @@ export interface operations {
     };
     uploadPaper: {
         parameters: {
-            query?: never;
+            query?: {
+                fileName?: string;
+                collectionId?: string;
+            };
             header?: {
                 /**
                  * @description Specifies the uploaded file name
@@ -192,6 +375,9 @@ export interface operations {
                  * @example text/event-stream
                  */
                 Accept?: "application/json" | "text/event-stream";
+                "content-type"?: string;
+                "content-disposition"?: string;
+                accept?: string;
             };
             path?: never;
             cookie?: never;

@@ -1,5 +1,6 @@
 import type { Paperful } from "../client";
 import type { components, operations } from "../generated/schema";
+import { PaperGraph } from "../models/graph";
 import { NotImplemented, UnsupportedMediaType } from "../utils/error";
 import { getFileName } from "../utils/papers";
 
@@ -108,5 +109,25 @@ export class Papers {
    */
   async download(id: string) {
     throw new NotImplemented();
+  }
+
+  /**
+   * Retrieves the paper graph object
+   */
+  async graph(id: string, params: {} = {}) {
+    const { total, items, cursor } = await this.client.request<
+      operations["listPaperGraphNodes"]["responses"]["200"]["content"]["application/json"]
+    >({
+      path: `/papers/${id}/nodes`,
+      init: {
+        method: "GET",
+      },
+    });
+
+    return new PaperGraph({
+      nodes: items,
+      total,
+      cursor,
+    });
   }
 }
