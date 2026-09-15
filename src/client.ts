@@ -37,25 +37,40 @@ export class Paperful {
     this.usage = new Usage(this);
   }
 
-  private fetch(payload: { path: string; init?: RequestInit }) {
-    return fetch(`${this.baseUrl}${payload.path}`, {
-      ...payload.init,
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "User-Agent": "@paperful/sdk",
-        ...payload.init?.headers,
+  private fetch(payload: {
+    path: string;
+    query?: Record<string, any>;
+    init?: RequestInit;
+  }) {
+    return fetch(
+      [
+        this.baseUrl,
+        payload.path,
+        ...(payload.query && Object.keys(payload.query).length
+          ? [`?${new URLSearchParams(payload.query).toString()}`]
+          : []),
+      ].join(""),
+      {
+        ...payload.init,
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "User-Agent": "@paperful/sdk",
+          ...payload.init?.headers,
+        },
       },
-    });
+    );
   }
 
   async request<T>({
     path,
+    query,
     init = {},
   }: {
     path: string;
+    query?: Record<string, any>;
     init?: RequestInit;
   }): Promise<T> {
-    const response = await this.fetch({ path, init });
+    const response = await this.fetch({ path, query, init });
 
     if (!response.ok) {
       const error = await response.json();
@@ -67,13 +82,16 @@ export class Paperful {
 
   async *stream<T>({
     path,
+    query,
     init = {},
   }: {
     path: string;
+    query?: Record<string, any>;
     init?: RequestInit;
   }): AsyncGenerator<T, void, unknown> {
     const response = await this.fetch({
       path,
+      query,
       init: {
         ...init,
         headers: {

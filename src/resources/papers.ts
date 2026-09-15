@@ -128,6 +128,8 @@ export class Papers {
       nodes: items,
       total,
       cursor,
+      paperId: id,
+      client: this.client,
     });
   }
 }
