@@ -1,6 +1,7 @@
 import type { Paperful } from "../client";
-import type { components, operations } from "../generated/schema";
+import type { operations } from "../generated/schema";
 import { PaperGraph } from "../models/graph";
+import type { PaperUploadEvent } from "../types/paper";
 import { NotImplemented, UnsupportedMediaType } from "../utils/error";
 import { getFileName } from "../utils/papers";
 
@@ -19,6 +20,7 @@ export class Papers {
      * @default true
      */
     waitForProcessing?: boolean;
+    onEvent?: (event: PaperUploadEvent) => void;
   }) {
     const fileName = params.fileName ?? getFileName(params.file);
 
@@ -44,17 +46,13 @@ export class Papers {
         init,
       });
     } else {
-      const stream = this.client.stream<
-        | { event: "started"; data: {} }
-        | {
-            event: "completed";
-            data: components["schemas"]["Paper"];
-          }
-      >({
+      const stream = this.client.stream<PaperUploadEvent>({
         path: "/papers",
         init,
       });
       for await (const { event, data } of stream) {
+        params.onEvent?.({ event, data } as PaperUploadEvent);
+
         if (event === "completed") {
           return data;
         }
