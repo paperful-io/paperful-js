@@ -25,7 +25,7 @@ pnpm add @paperful/sdk
 
 ## Usage
 
-Create an API key in the [Paperful Console](https://paperful.io/console), then initialize the client:
+Create an API key in the [Paperful Console](https://console.paperful.io), then initialize the client:
 
 ```ts
 import Paperful from "@paperful/sdk";

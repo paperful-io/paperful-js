@@ -1,7 +1,7 @@
 {
   "name": "@paperful/sdk",
-  "description": "Official JavaScript SDK for Paperful",
-  "version": "1.0.0",
+  "description": "Give documents superpowers with JavaScript",
+  "version": "1.0.1",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -19,6 +19,13 @@
     }
   },
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paperful-io/paperful-js.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     "dist",
     "README.md",
