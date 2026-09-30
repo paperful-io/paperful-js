@@ -2,7 +2,12 @@ import type { Paperful } from "../client";
 import type { operations } from "../generated/schema";
 import { PaperGraph } from "../models/graph";
 import type { PaperUploadEvent } from "../types/paper";
-import { NotImplemented, UnsupportedMediaType } from "../utils/error";
+import {
+  hydrateError,
+  NotImplemented,
+  UnsupportedMediaType,
+  type DehydratedError,
+} from "../utils/error";
 import { getFileName } from "../utils/papers";
 
 export class Papers {
@@ -46,11 +51,20 @@ export class Papers {
         init,
       });
     } else {
-      const stream = this.client.stream<PaperUploadEvent>({
+      const stream = this.client.stream<
+        | PaperUploadEvent
+        | { event: "ping"; data: {} }
+        | { event: "failed"; data: { error: DehydratedError } }
+      >({
         path: "/papers",
         init,
       });
       for await (const { event, data } of stream) {
+        // ignore ping events
+        if (event === "ping") continue;
+
+        if (event === "failed") throw hydrateError(data.error);
+
         params.onEvent?.({ event, data } as PaperUploadEvent);
 
         if (event === "completed") {
