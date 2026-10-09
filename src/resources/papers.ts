@@ -89,13 +89,44 @@ export class Papers {
   }
 
   /**
-   * List papers
+   * Lists papers in the current workspace.
+   *
+   * @example
+   * const { items, cursor } = await paperful.papers.list({
+   *   extension: ["pdf", "md"],
+   *   sort: "size",
+   *   order: "asc",
+   * });
    */
-  async list() {
+  async list(
+    params: Omit<
+      NonNullable<operations["listPapers"]["parameters"]["query"]>,
+      "extension"
+    > & {
+      /**
+       * Filter by file extension, e.g. `["pdf", "md"]` or `"pdf,md"`.
+       */
+      extension?: string | string[];
+    } = {},
+  ) {
+    const { extension, ...query } = params;
+
     return await this.client.request<
       operations["listPapers"]["responses"]["200"]["content"]["application/json"]
     >({
       path: "/papers",
+      query: {
+        ...Object.fromEntries(
+          Object.entries(query).filter(([, value]) => value !== undefined),
+        ),
+        ...(extension?.length
+          ? {
+              extension: Array.isArray(extension)
+                ? extension.join(",")
+                : extension,
+            }
+          : {}),
+      },
       init: {
         method: "GET",
       },

@@ -349,10 +349,14 @@ export interface operations {
             query?: {
                 next?: string;
                 prev?: string;
-                collectionId?: string;
                 fileName?: string;
-                archived?: string;
-                view?: "archived" | "bin";
+                status?: components["schemas"]["PaperStatus"];
+                /** @description Filter by file extension. Accepts a comma separated list, e.g. `pdf,txt,md`. */
+                extension?: string;
+                /** @description Field to sort by. */
+                sort?: "created" | "updated" | "fileName" | "size";
+                /** @description Sort direction. */
+                order?: "asc" | "desc";
             };
             header?: never;
             path?: never;
