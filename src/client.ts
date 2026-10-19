@@ -1,8 +1,9 @@
 import { Papers } from "./resources/papers";
 import { Search } from "./resources/search";
 import { Usage } from "./resources/usage";
-import { hydrateError, type DehydratedError } from "./utils/error";
+import { errorFromResponse } from "./utils/error";
 import { getEnvironmentVariable } from "./utils/env";
+import { serializeQuery } from "./utils/query";
 
 /**
  * The base object for interacting with Paperful
@@ -42,14 +43,10 @@ export class Paperful {
     query?: Record<string, any>;
     init?: RequestInit;
   }) {
+    const search = payload.query ? serializeQuery(payload.query) : "";
+
     return fetch(
-      [
-        this.baseUrl,
-        payload.path,
-        ...(payload.query && Object.keys(payload.query).length
-          ? [`?${new URLSearchParams(payload.query).toString()}`]
-          : []),
-      ].join(""),
+      [this.baseUrl, payload.path, ...(search ? [`?${search}`] : [])].join(""),
       {
         ...payload.init,
         headers: {
@@ -70,14 +67,28 @@ export class Paperful {
     query?: Record<string, any>;
     init?: RequestInit;
   }): Promise<T> {
-    const response = await this.fetch({ path, query, init });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw hydrateError(error as DehydratedError);
-    }
+    const response = await this.raw({ path, query, init });
 
     return response.json() as Promise<T>;
+  }
+
+  /**
+   * Performs a request and returns the raw response, throwing on errors.
+   */
+  async raw({
+    path,
+    query,
+    init = {},
+  }: {
+    path: string;
+    query?: Record<string, any>;
+    init?: RequestInit;
+  }): Promise<Response> {
+    const response = await this.fetch({ path, query, init });
+
+    if (!response.ok) throw await errorFromResponse(response);
+
+    return response;
   }
 
   async *stream<T>({
@@ -101,11 +112,7 @@ export class Paperful {
       },
     });
 
-    if (!response.ok) {
-      throw new Error(
-        `Paperful API error: ${response.status} ${response.statusText}`,
-      );
-    }
+    if (!response.ok) throw await errorFromResponse(response);
 
     if (!response.body) {
       throw new Error("Paperful API error: response body is empty");

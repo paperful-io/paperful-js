@@ -1,14 +1,20 @@
 import type { Paperful } from "../client";
 import type { operations } from "../generated/schema";
 import { PaperGraph } from "../models/graph";
-import type { PaperUploadEvent } from "../types/paper";
+import type {
+  MetadataFilter,
+  PaperMetadata,
+  PaperUploadEvent,
+} from "../types/paper";
 import {
   hydrateError,
-  NotImplemented,
   UnsupportedMediaType,
   type DehydratedError,
 } from "../utils/error";
-import { getFileName } from "../utils/papers";
+import {
+  getFileName,
+  getFileNameFromContentDisposition,
+} from "../utils/papers";
 
 export class Papers {
   constructor(private readonly client: Paperful) {}
@@ -25,6 +31,10 @@ export class Papers {
      * @default true
      */
     waitForProcessing?: boolean;
+    /**
+     * Metadata to attach to the paper, e.g. `{ category: "invoice" }`.
+     */
+    metadata?: PaperMetadata;
     onEvent?: (event: PaperUploadEvent) => void;
   }) {
     const fileName = params.fileName ?? getFileName(params.file);
@@ -43,11 +53,16 @@ export class Papers {
       body: params.file,
     };
 
+    const query = params.metadata
+      ? { metadata: JSON.stringify(params.metadata) }
+      : undefined;
+
     if (params.waitForProcessing === false) {
       return await this.client.request<
         operations["uploadPaper"]["responses"]["201"]["content"]["application/json"]
       >({
         path: "/papers",
+        query,
         init,
       });
     } else {
@@ -57,6 +72,7 @@ export class Papers {
         | { event: "failed"; data: { error: DehydratedError } }
       >({
         path: "/papers",
+        query,
         init,
       });
       for await (const { event, data } of stream) {
@@ -96,37 +112,30 @@ export class Papers {
    *   extension: ["pdf", "md"],
    *   sort: "size",
    *   order: "asc",
+   *   metadata: { category: "invoice", amount: { gte: 100 } },
    * });
    */
   async list(
     params: Omit<
       NonNullable<operations["listPapers"]["parameters"]["query"]>,
-      "extension"
+      "extension" | "metadata"
     > & {
       /**
        * Filter by file extension, e.g. `["pdf", "md"]` or `"pdf,md"`.
        */
       extension?: string | string[];
+      /**
+       * Filter by metadata. Arrays match any of the values and objects with
+       * `gt`, `gte`, `lt`, `lte` match numeric ranges.
+       */
+      metadata?: MetadataFilter;
     } = {},
   ) {
-    const { extension, ...query } = params;
-
     return await this.client.request<
       operations["listPapers"]["responses"]["200"]["content"]["application/json"]
     >({
       path: "/papers",
-      query: {
-        ...Object.fromEntries(
-          Object.entries(query).filter(([, value]) => value !== undefined),
-        ),
-        ...(extension?.length
-          ? {
-              extension: Array.isArray(extension)
-                ? extension.join(",")
-                : extension,
-            }
-          : {}),
-      },
+      query: params,
       init: {
         method: "GET",
       },
@@ -148,20 +157,102 @@ export class Papers {
   }
 
   /**
-   * Downloads a paper
+   * Updates a paper. Metadata keys are merged into the existing metadata,
+   * set a key to `null` to remove it. Pass `replace: true` to replace all
+   * the metadata instead.
+   *
+   * @example
+   * // merge
+   * await paperful.papers.update(id, {
+   *   metadata: { category: "receipt", draft: null },
+   * });
+   *
+   * // replace
+   * await paperful.papers.update(id, {
+   *   metadata: { category: "receipt" },
+   *   replace: true,
+   * });
    */
-  async download(id: string) {
-    throw new NotImplemented();
+  async update(
+    id: string,
+    params:
+      | (operations["updatePaper"]["requestBody"]["content"]["application/json"] & {
+          replace?: false;
+        })
+      | {
+          metadata: PaperMetadata;
+          /**
+           * Replace all the metadata instead of merging it.
+           */
+          replace: true;
+        },
+  ) {
+    const { replace, ...body } = params;
+
+    if (replace) {
+      return await this.client.request<
+        operations["replacePaperMetadata"]["responses"]["200"]["content"]["application/json"]
+      >({
+        path: `/papers/${id}/metadata`,
+        init: {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body.metadata),
+        },
+      });
+    }
+
+    return await this.client.request<
+      operations["updatePaper"]["responses"]["200"]["content"]["application/json"]
+    >({
+      path: `/papers/${id}`,
+      init: {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    });
+  }
+
+  /**
+   * Downloads a paper's original file.
+   *
+   * @example
+   * const file = await paperful.papers.download(id);
+   * await Bun.write(file.name, file);
+   */
+  async download(id: string): Promise<File> {
+    const response = await this.client.raw({
+      path: `/papers/${id}/download`,
+      init: {
+        method: "GET",
+      },
+    });
+
+    return new File(
+      [await response.arrayBuffer()],
+      getFileNameFromContentDisposition(
+        response.headers.get("content-disposition"),
+      ) ?? id,
+      { type: response.headers.get("content-type") ?? undefined },
+    );
   }
 
   /**
    * Retrieves the paper graph object
    */
-  async graph(id: string, params: {} = {}) {
+  async graph(
+    id: string,
+    params: Omit<
+      NonNullable<operations["listPaperGraphNodes"]["parameters"]["query"]>,
+      "next" | "prev"
+    > = {},
+  ) {
     const { total, items, cursor } = await this.client.request<
       operations["listPaperGraphNodes"]["responses"]["200"]["content"]["application/json"]
     >({
       path: `/papers/${id}/nodes`,
+      query: params,
       init: {
         method: "GET",
       },

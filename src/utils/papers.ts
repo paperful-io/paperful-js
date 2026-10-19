@@ -16,3 +16,24 @@ export const getFileName = (file: unknown): string | undefined => {
 
   return undefined;
 };
+
+/**
+ * Extracts the file name from a `Content-Disposition` header.
+ */
+export const getFileNameFromContentDisposition = (
+  header: string | null,
+): string | undefined => {
+  if (!header) return undefined;
+
+  const encoded = header.match(/filename\*\s*=\s*(?:UTF-8'')?([^;]+)/i);
+  if (encoded?.[1]) {
+    try {
+      return decodeURIComponent(encoded[1].trim().replace(/^"|"$/g, ""));
+    } catch {
+      // fall back to the plain filename
+    }
+  }
+
+  const plain = header.match(/filename\s*=\s*("([^"]*)"|[^;]+)/i);
+  return (plain?.[2] ?? plain?.[1])?.trim() || undefined;
+};

@@ -49,6 +49,24 @@ export function hydrateError(error: DehydratedError) {
   return new InternalError();
 }
 
+/**
+ * Builds an error from a failed response, falling back to the HTTP status
+ * when the body isn't a JSON error (e.g. an empty 404).
+ */
+export async function errorFromResponse(response: Response) {
+  try {
+    const error = (await response.json()) as DehydratedError;
+    if (error?.type) return hydrateError(error);
+  } catch {
+    // body is empty or not JSON
+  }
+
+  const ErrorClass = ErrorByStatus[response.status] ?? InternalError;
+  return new ErrorClass(
+    `Paperful API error: ${response.status} ${response.statusText}`,
+  );
+}
+
 export class PaperfulError extends Error {
   status!: number;
   code?: string;
@@ -239,4 +257,19 @@ export const ErrorByName = {
   [ErrorName.ServiceUnavailable]: ServiceUnavailable,
   [ErrorName.Validation]: ValidationError,
   [ErrorName.TimedOut]: TimedOut,
+};
+
+const ErrorByStatus: Record<number, new (message?: string) => PaperfulError> = {
+  400: BadRequest,
+  401: Unauthorized,
+  403: PermissionDenied,
+  404: NotFound,
+  408: TimedOut,
+  409: Conflict,
+  413: EntityTooLarge,
+  415: UnsupportedMediaType,
+  422: InvalidData,
+  429: TooManyRequests,
+  501: NotImplemented,
+  503: ServiceUnavailable,
 };

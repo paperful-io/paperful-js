@@ -28,13 +28,49 @@ pnpm add @paperful/sdk
 Create an API key in the [Paperful Console](https://console.paperful.io), then initialize the client:
 
 ```ts
-import Paperful from "@paperful/sdk";
+import { Paperful } from "@paperful/sdk";
 
 const paperful = new Paperful({
   apiKey: "pf_xyz",
 });
 
-const paper = await paperful.papers.upload();
+const paper = await paperful.papers.upload({
+  file: Bun.file("./invoice.pdf"),
+});
+```
+
+### Metadata
+
+Attach free-form metadata to papers and use it to filter lists and searches. Arrays match any of the values and `gt`, `gte`, `lt`, `lte` match numeric ranges:
+
+```ts
+const paper = await paperful.papers.upload({
+  file: Bun.file("./invoice.pdf"),
+  metadata: { category: "invoice", amount: 150 },
+});
+
+const { items } = await paperful.papers.list({
+  metadata: { category: ["invoice", "receipt"], amount: { gte: 100 } },
+});
+
+const results = await paperful.search.query("total amount", {
+  metadata: { category: "invoice" },
+});
+
+// merge keys (null removes a key)
+await paperful.papers.update(paper.id, { metadata: { amount: null } });
+
+// replace all metadata
+await paperful.papers.update(paper.id, {
+  metadata: { category: "receipt" },
+  replace: true,
+});
+```
+
+### Download
+
+```ts
+const file = await paperful.papers.download(paper.id); // File
 ```
 
 > [!TIP]

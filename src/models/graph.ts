@@ -8,7 +8,11 @@ export class PaperNode<T = unknown> {
   readonly bbox: Bbox;
   readonly position: number;
   readonly page: number;
+  readonly created: string;
 
+  /**
+   * Not described by the API schema; may be `undefined`.
+   */
   readonly data: T;
 
   readonly graph: PaperGraph;
@@ -25,7 +29,8 @@ export class PaperNode<T = unknown> {
     this.bbox = node.bbox;
     this.position = node.position;
     this.page = node.page;
-    this.data = node.data as T;
+    this.created = node.created;
+    this.data = (node as { data?: unknown }).data as T;
     this.graph = graph;
   }
 
@@ -108,6 +113,22 @@ export class PaperGraph {
     this.cursor = cursor;
     this.paperId = paperId;
     this.client = client;
+  }
+
+  /**
+   * Retrieves a single node of this paper by its ID.
+   */
+  async node(nodeId: string): Promise<PaperNode> {
+    const node = await this.client.request<
+      operations["getPaperGraphNode"]["responses"]["200"]["content"]["application/json"]
+    >({
+      path: `/papers/${this.paperId}/nodes/${nodeId}`,
+      init: {
+        method: "GET",
+      },
+    });
+
+    return new PaperNode({ node, graph: this });
   }
 
   /**

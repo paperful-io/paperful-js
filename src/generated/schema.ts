@@ -129,6 +129,50 @@ export interface paths {
         delete: operations["deletePaper"];
         options?: never;
         head?: never;
+        /**
+         * Update a Paper
+         * @description Update a paper. Metadata keys are merged into the existing metadata, set a key to null to remove it.
+         */
+        patch: operations["updatePaper"];
+        trace?: never;
+    };
+    "/papers/{id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download a Paper
+         * @description Download a paper by its ID.
+         */
+        get: operations["downloadPaper"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/papers/{id}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace a Paper's Metadata
+         * @description Replace all the metadata of a paper.
+         */
+        put: operations["replacePaperMetadata"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -188,6 +232,10 @@ export interface components {
         };
         /** @enum {string} */
         PaperStatus: "pending" | "ready" | "failed" | "deleted";
+        /** @description Free-form metadata. Values can be strings, numbers, booleans, arrays of a single type, or objects nested up to 3 levels. */
+        PaperMetadata: {
+            [key: string]: unknown;
+        };
         /** @enum {string} */
         PaperVersionStatus: "deleted" | "failed" | "pending" | "ready" | "validating" | "ingesting" | "enriching" | "structuring" | "indexing" | "embedding" | "finalizing";
         PaperVersion: {
@@ -212,7 +260,12 @@ export interface components {
             ratio?: number;
             pages?: number;
             status: components["schemas"]["PaperStatus"];
+            metadata: components["schemas"]["PaperMetadata"];
             version: components["schemas"]["PaperVersion"];
+        };
+        /** @description Metadata keys to merge into the existing metadata. Set a key to null to remove it. */
+        PaperMetadataPatch: {
+            [key: string]: unknown;
         };
     };
     responses: never;
@@ -347,6 +400,10 @@ export interface operations {
     listPapers: {
         parameters: {
             query?: {
+                /** @description Filter by metadata. Use commas for any-of and `gt`, `gte`, `lt`, `lte` for numeric ranges, e.g. `metadata[category]=invoice,receipt&metadata[amount][gte]=100`. */
+                metadata?: {
+                    [key: string]: unknown;
+                };
                 next?: string;
                 prev?: string;
                 fileName?: string;
@@ -387,6 +444,8 @@ export interface operations {
             query?: {
                 fileName?: string;
                 collectionId?: string;
+                /** @description JSON encoded metadata to attach to the paper, e.g. `{"category":"invoice"}`. */
+                metadata?: string;
             };
             header?: {
                 /**
@@ -476,9 +535,98 @@ export interface operations {
             };
         };
     };
+    updatePaper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    metadata?: components["schemas"]["PaperMetadataPatch"];
+                };
+            };
+        };
+        responses: {
+            /** @description Paper updated successfully. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+        };
+    };
+    downloadPaper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paper downloaded successfully. */
+            200: {
+                headers: {
+                    /** @description Attachment filename, `<versionId>.<extension>`. */
+                    "content-disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description Paper file not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    replacePaperMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaperMetadata"];
+            };
+        };
+        responses: {
+            /** @description Paper metadata replaced successfully. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Paper"];
+                };
+            };
+        };
+    };
     search: {
         parameters: {
             query: {
+                /** @description Filter by metadata. Use commas for any-of and `gt`, `gte`, `lt`, `lte` for numeric ranges, e.g. `metadata[category]=invoice,receipt&metadata[amount][gte]=100`. */
+                metadata?: {
+                    [key: string]: unknown;
+                };
                 query: string;
                 mode?: "fulltext" | "hybrid" | "semantic";
             };
@@ -525,6 +673,9 @@ export interface operations {
                                 id: string;
                                 fileName: string;
                                 title?: string;
+                                metadata?: {
+                                    [key: string]: unknown;
+                                };
                                 version: {
                                     id: string;
                                 };

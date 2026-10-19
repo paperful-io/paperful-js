@@ -3,10 +3,12 @@ import { Paperful } from "../../src";
 
 describe("search / query", () => {
   const paperful = new Paperful();
+  const tag = crypto.randomUUID();
 
   test("prepare", async () => {
     await paperful.papers.upload({
       file: Bun.file("./tests/fixtures/text.pdf"),
+      metadata: { tag },
     });
   }, 30000);
 
@@ -35,5 +37,16 @@ describe("search / query", () => {
     expect(item.paper).toBeDefined();
     expect(item.paper.id).toBeDefined();
     expect(item.paper.fileName).toBeDefined();
+  });
+
+  test("with metadata", async () => {
+    const results = await paperful.search.query("text", {
+      metadata: { tag },
+    });
+
+    expect(results.items.length).toBeGreaterThan(0);
+
+    for (const item of results.items)
+      expect(item.paper.metadata?.tag).toBe(tag);
   });
 });
