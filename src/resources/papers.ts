@@ -15,9 +15,14 @@ import {
   getFileName,
   getFileNameFromContentDisposition,
 } from "../utils/papers";
+import { Metadata } from "./metadata";
 
 export class Papers {
-  constructor(private readonly client: Paperful) {}
+  readonly metadata: Metadata;
+
+  constructor(private readonly client: Paperful) {
+    this.metadata = new Metadata(client);
+  }
 
   /**
    * Uploads a new paper to the current workspace.
@@ -158,50 +163,19 @@ export class Papers {
 
   /**
    * Updates a paper. Metadata keys are merged into the existing metadata,
-   * set a key to `null` to remove it. Pass `replace: true` to replace all
-   * the metadata instead.
+   * set a key to `null` to remove it.
+   *
+   * To replace all the metadata, use `papers.metadata.replace`.
    *
    * @example
-   * // merge
    * await paperful.papers.update(id, {
    *   metadata: { category: "receipt", draft: null },
-   * });
-   *
-   * // replace
-   * await paperful.papers.update(id, {
-   *   metadata: { category: "receipt" },
-   *   replace: true,
    * });
    */
   async update(
     id: string,
-    params:
-      | (operations["updatePaper"]["requestBody"]["content"]["application/json"] & {
-          replace?: false;
-        })
-      | {
-          metadata: PaperMetadata;
-          /**
-           * Replace all the metadata instead of merging it.
-           */
-          replace: true;
-        },
+    params: operations["updatePaper"]["requestBody"]["content"]["application/json"],
   ) {
-    const { replace, ...body } = params;
-
-    if (replace) {
-      return await this.client.request<
-        operations["replacePaperMetadata"]["responses"]["200"]["content"]["application/json"]
-      >({
-        path: `/papers/${id}/metadata`,
-        init: {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body.metadata),
-        },
-      });
-    }
-
     return await this.client.request<
       operations["updatePaper"]["responses"]["200"]["content"]["application/json"]
     >({
@@ -209,7 +183,7 @@ export class Papers {
       init: {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(params),
       },
     });
   }

@@ -45,10 +45,7 @@ describe("papers / metadata", () => {
   });
 
   test("replace metadata", async () => {
-    const paper = await paperful.papers.update(paperId, {
-      metadata: { tag },
-      replace: true,
-    });
+    const paper = await paperful.papers.metadata.replace(paperId, { tag });
 
     expect(paper.metadata).toEqual({ tag });
   });
