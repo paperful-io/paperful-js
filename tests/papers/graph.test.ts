@@ -76,6 +76,10 @@ describe("papers / graph", () => {
         page: 0,
         type: "unknown",
         bbox: { x: 0, y: 0, w: 0, h: 0 },
+        text: "",
+        render: "",
+        meta: { refs: [] },
+        data: null,
         created: new Date().toISOString(),
       },
       graph,
@@ -117,13 +121,83 @@ describe("papers / graph", () => {
     expect(fetched).toEqual([]);
   });
 
-  test("context returns a node around the requested position", async () => {
+  test("nodes expose text, refs and render", async () => {
     const graph = await paperful.papers.graph(uploaded!.id);
-    const node = graph.nodes[0]!;
+    const node = graph.nodes.find((node) => node.refs.length > 0)!;
+
+    expect(typeof node.text).toBe("string");
+    expect(node.text.length).toBeGreaterThan(0);
+    expect(node.refs[0]?.c).toBeDefined();
+    expect(typeof node.render).toBe("string");
+    expect(JSON.stringify(node.data ?? {})).not.toContain('"_"');
+  });
+
+  test("context returns the nodes around the requested position", async () => {
+    const graph = await paperful.papers.graph(uploaded!.id);
+    const node = graph.nodes[1] ?? graph.nodes[0]!;
 
     const context = await node.context({ before: 1, after: 1 });
 
-    expect(context).toBeInstanceOf(PaperNode);
-    expect(context.graph).toBe(graph);
+    expect(Array.isArray(context)).toBe(true);
+    expect(context.map(({ id }) => id)).toContain(node.id);
+    for (const item of context) {
+      expect(item).toBeInstanceOf(PaperNode);
+      expect(item.graph).toBe(graph);
+    }
+  });
+
+  test("node retrieves the requested node", async () => {
+    const graph = await paperful.papers.graph(uploaded!.id);
+    const target = graph.nodes[graph.nodes.length - 1]!;
+
+    const node = await graph.node(target.id);
+
+    expect(node.id).toBe(target.id);
+  });
+});
+
+describe("papers / graph / tables", () => {
+  const paperful = new Paperful();
+
+  let uploaded: Awaited<ReturnType<typeof paperful.papers.upload>>;
+
+  test("prepare", async () => {
+    uploaded = await paperful.papers.upload({
+      file: Bun.file("./tests/fixtures/scanned-table.pdf"),
+    });
+  }, 120000);
+
+  test("type filter returns typed tables", async () => {
+    const graph = await paperful.papers.graph(uploaded!.id, { type: ["table"] });
+
+    expect(graph.params).toEqual({ type: ["table"] });
+    expect(graph.nodes.length).toBeGreaterThan(0);
+
+    for (const node of graph.nodes) {
+      if (node.type !== "table") throw new Error(`unexpected ${node.type}`);
+      if (!node.data) continue;
+
+      // narrowed to NodeTableData
+      expect(Array.isArray(node.data.cells)).toBe(true);
+      expect(Array.isArray(node.data.insights)).toBe(true);
+      expect(typeof node.data.summary).toBe("string");
+
+      for (const cell of node.data.cells) {
+        expect(typeof cell.content).toBe("string");
+        expect(cell).not.toHaveProperty("_");
+      }
+    }
+  });
+
+  test("is narrows nodes", async () => {
+    const graph = await paperful.papers.graph(uploaded!.id);
+    const table = graph.nodes.find((node) => node.is("table"));
+
+    if (table?.is("table")) {
+      expect(table.data === null || Array.isArray(table.data.cells)).toBe(true);
+    }
+
+    const text = graph.nodes.find((node) => node.type === "text");
+    if (text?.type === "text") expect(text.data).toBeNull();
   });
 });

@@ -55,8 +55,14 @@ export function hydrateError(error: DehydratedError) {
  */
 export async function errorFromResponse(response: Response) {
   try {
-    const error = (await response.json()) as DehydratedError;
-    if (error?.type) return hydrateError(error);
+    const body = (await response.json()) as
+      | { error?: DehydratedError }
+      | DehydratedError;
+
+    // the api wraps errors as `{ error: { type, ... } }`
+    const error = "error" in body && body.error ? body.error : body;
+    if ("type" in error && error.type)
+      return hydrateError(error as DehydratedError);
   } catch {
     // body is empty or not JSON
   }

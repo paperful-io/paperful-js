@@ -1,6 +1,7 @@
 import type { Paperful } from "../client";
 import type { operations } from "../generated/schema";
 import { PaperGraph } from "../models/graph";
+import type { PaperGraphParams } from "../types/graph";
 import type {
   MetadataFilter,
   PaperMetadata,
@@ -215,13 +216,7 @@ export class Papers {
   /**
    * Retrieves the paper graph object
    */
-  async graph(
-    id: string,
-    params: Omit<
-      NonNullable<operations["listPaperGraphNodes"]["parameters"]["query"]>,
-      "next" | "prev"
-    > = {},
-  ) {
+  async graph(id: string, params: PaperGraphParams = {}) {
     const { total, items, cursor } = await this.client.request<
       operations["listPaperGraphNodes"]["responses"]["200"]["content"]["application/json"]
     >({
@@ -238,6 +233,7 @@ export class Papers {
       cursor,
       paperId: id,
       client: this.client,
+      params,
     });
   }
 }

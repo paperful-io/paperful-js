@@ -1,44 +1,74 @@
 import type { Paperful } from "../client";
-import type { components, operations } from "../generated/schema";
+import type { operations } from "../generated/schema";
 import type { Bbox, Cursor } from "../types/general";
+import type {
+  NodeTextRef,
+  PaperGraphParams,
+  PaperNodeSchema,
+} from "../types/graph";
 
-export class PaperNode<T = unknown> {
+export class PaperNode<N extends PaperNodeSchema = PaperNodeSchema> {
   readonly id: string;
-  readonly type: components["schemas"]["PaperNode"]["type"];
+  readonly type: N["type"];
   readonly bbox: Bbox;
   readonly position: number;
   readonly page: number;
   readonly created: string;
 
   /**
-   * Not described by the API schema; may be `undefined`.
+   * Type specific data, e.g. the cells and insights of a table. `null` for
+   * text nodes and for nodes that were not enriched.
    */
-  readonly data: T;
+  readonly data: N["data"];
+
+  /**
+   * The plain text content of the node.
+   */
+  readonly text: string;
+
+  /**
+   * The text entries that make up the node.
+   */
+  readonly refs: NodeTextRef[];
+
+  /**
+   * A signed path to a rendered crop of the node region.
+   */
+  readonly render: string;
 
   readonly graph: PaperGraph;
 
-  constructor({
-    node,
-    graph,
-  }: {
-    node: components["schemas"]["PaperNode"];
-    graph: PaperGraph;
-  }) {
+  constructor({ node, graph }: { node: N; graph: PaperGraph }) {
     this.id = node.id;
     this.type = node.type;
     this.bbox = node.bbox;
     this.position = node.position;
     this.page = node.page;
     this.created = node.created;
-    this.data = (node as { data?: unknown }).data as T;
+    this.data = node.data;
+    this.text = node.text;
+    this.refs = node.meta.refs;
+    this.render = node.render;
     this.graph = graph;
+  }
+
+  /**
+   * Narrows the node to the given type(s).
+   *
+   * @example
+   * if (node.is("table")) node.data?.cells;
+   */
+  is<T extends PaperNodeSchema["type"]>(
+    ...types: T[]
+  ): this is AnyPaperNode<Extract<PaperNodeSchema, { type: T }>> {
+    return (types as string[]).includes(this.type);
   }
 
   /**
    * Returns the node that immediately follows this one, fetching the next
    * page of the graph if it hasn't been loaded yet.
    */
-  async next(): Promise<PaperNode | undefined> {
+  async next(): Promise<AnyPaperNode | undefined> {
     const index = this.graph.nodes.findIndex((node) => node.id === this.id);
     if (index === -1) return undefined;
 
@@ -54,7 +84,7 @@ export class PaperNode<T = unknown> {
    * Returns the node that immediately precedes this one, fetching the
    * previous page of the graph if it hasn't been loaded yet.
    */
-  async previous(): Promise<PaperNode | undefined> {
+  async previous(): Promise<AnyPaperNode | undefined> {
     const index = this.graph.nodes.findIndex((node) => node.id === this.id);
     if (index === -1) return undefined;
 
@@ -72,8 +102,8 @@ export class PaperNode<T = unknown> {
   async context({
     before,
     after,
-  }: { before?: number; after?: number } = {}): Promise<PaperNode> {
-    const node = await this.graph.client.request<
+  }: { before?: number; after?: number } = {}): Promise<AnyPaperNode[]> {
+    const nodes = await this.graph.client.request<
       operations["getPaperGraphNodeContext"]["responses"]["200"]["content"]["application/json"]
     >({
       path: `/papers/${this.graph.paperId}/nodes/${this.id}/context`,
@@ -83,17 +113,32 @@ export class PaperNode<T = unknown> {
       },
     });
 
-    return new PaperNode({ node, graph: this.graph });
+    return nodes.map((node) => toPaperNode(node, this.graph));
   }
 }
 
+/**
+ * A union of `PaperNode`s, one per node type, so checking `node.type` narrows
+ * `node.data`.
+ */
+export type AnyPaperNode<N extends PaperNodeSchema = PaperNodeSchema> =
+  N extends PaperNodeSchema ? PaperNode<N> : never;
+
+const toPaperNode = (node: PaperNodeSchema, graph: PaperGraph) =>
+  new PaperNode({ node, graph }) as AnyPaperNode;
+
 export class PaperGraph {
-  nodes: PaperNode[] = [];
+  nodes: AnyPaperNode[] = [];
   cursor: Cursor = {};
   total = 0;
 
   readonly paperId: string;
   readonly client: Paperful;
+
+  /**
+   * The filters the graph was retrieved with, kept when paginating.
+   */
+  readonly params: PaperGraphParams;
 
   constructor({
     nodes,
@@ -101,24 +146,27 @@ export class PaperGraph {
     cursor,
     paperId,
     client,
+    params = {},
   }: {
-    nodes: components["schemas"]["PaperNode"][];
+    nodes: PaperNodeSchema[];
     total: number;
     cursor: Cursor;
     paperId: string;
     client: Paperful;
+    params?: PaperGraphParams;
   }) {
-    this.nodes = nodes.map((node) => new PaperNode({ node, graph: this }));
+    this.nodes = nodes.map((node) => toPaperNode(node, this));
     this.total = total;
     this.cursor = cursor;
     this.paperId = paperId;
     this.client = client;
+    this.params = params;
   }
 
   /**
    * Retrieves a single node of this paper by its ID.
    */
-  async node(nodeId: string): Promise<PaperNode> {
+  async node(nodeId: string): Promise<AnyPaperNode> {
     const node = await this.client.request<
       operations["getPaperGraphNode"]["responses"]["200"]["content"]["application/json"]
     >({
@@ -128,26 +176,26 @@ export class PaperGraph {
       },
     });
 
-    return new PaperNode({ node, graph: this });
+    return toPaperNode(node, this);
   }
 
   /**
    * Fetches and appends the next page of nodes, if any, updating the cursor.
    */
-  async next(): Promise<PaperNode[]> {
+  async next(): Promise<AnyPaperNode[]> {
     if (!this.cursor?.next) return [];
 
     const { total, items, cursor } = await this.client.request<
       operations["listPaperGraphNodes"]["responses"]["200"]["content"]["application/json"]
     >({
       path: `/papers/${this.paperId}/nodes`,
-      query: { next: this.cursor.next },
+      query: { ...this.params, next: this.cursor.next },
       init: {
         method: "GET",
       },
     });
 
-    const fetched = items.map((node) => new PaperNode({ node, graph: this }));
+    const fetched = items.map((node) => toPaperNode(node, this));
     this.nodes.push(...fetched);
     this.total = total;
     this.cursor = { ...this.cursor, next: cursor?.next };
@@ -158,20 +206,20 @@ export class PaperGraph {
   /**
    * Fetches and prepends the previous page of nodes, if any, updating the cursor.
    */
-  async previous(): Promise<PaperNode[]> {
+  async previous(): Promise<AnyPaperNode[]> {
     if (!this.cursor?.prev) return [];
 
     const { total, items, cursor } = await this.client.request<
       operations["listPaperGraphNodes"]["responses"]["200"]["content"]["application/json"]
     >({
       path: `/papers/${this.paperId}/nodes`,
-      query: { prev: this.cursor.prev },
+      query: { ...this.params, prev: this.cursor.prev },
       init: {
         method: "GET",
       },
     });
 
-    const fetched = items.map((node) => new PaperNode({ node, graph: this }));
+    const fetched = items.map((node) => toPaperNode(node, this));
     this.nodes.unshift(...fetched);
     this.total = total;
     this.cursor = { ...this.cursor, prev: cursor?.prev };

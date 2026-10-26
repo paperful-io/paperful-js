@@ -185,7 +185,7 @@ export interface paths {
         };
         /**
          * Search
-         * @description Searches for paper's content in the current workspace.
+         * @description Searches for paper's content in the current workspace. Results are paginated, reranking orders the results within each page.
          */
         get: operations["search"];
         put?: never;
@@ -200,7 +200,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** @description The bounding box of the node */
         Bbox: {
             /** @description The x coordinate of the bbox */
             x: number;
@@ -211,25 +210,256 @@ export interface components {
             /** @description The height of the bbox */
             h: number;
         };
-        PaperNode: {
+        NodeTextRef: {
+            /** @description The id of the text entry */
+            id: string;
+            /** @description The text content of the entry */
+            c: string;
+            /** @description The font family of the entry */
+            f: string;
+            /** @description The font size of the entry */
+            s: number;
+            /** @description Whether the entry ends a line */
+            eol?: boolean;
+            /** @description Whether the entry is right to left */
+            rtl?: boolean;
+            bbox: components["schemas"]["Bbox"];
+        };
+        PaperNodeMeta: {
+            /** @description The text entries that make up the node */
+            refs: components["schemas"]["NodeTextRef"][];
+        };
+        NodeImportance: {
+            /** @description The importance score of the node */
+            score: number;
+            /** @description The reason for the importance score */
+            reason: string;
+        };
+        NodeTableCell: {
+            /** @description The row index of the cell */
+            row: number;
+            /** @description The column index of the cell */
+            column: number;
+            /** @description The row span of the cell */
+            rowSpan: number;
+            /** @description The column span of the cell */
+            colSpan: number;
+            /** @description The content of the cell */
+            content: string;
+            /**
+             * @description The alignment of the cell
+             * @enum {string}
+             */
+            align: "left" | "center" | "right";
+            /**
+             * @description The type of the cell, either header or data
+             * @enum {string}
+             */
+            type: "header" | "row_header" | "data";
+        };
+        NodeInsight: {
+            /** @enum {string} */
+            type: "trend" | "comparison" | "maximum" | "minimum" | "change" | "outlier" | "correlation" | "distribution" | "other";
+            /** @description The content of the insight */
+            content: string;
+        };
+        NodeTableData: {
+            /** @description A short summary of the table */
+            summary: string;
+            /** @description A list of tags for the table */
+            tags: string[];
+            /** @description The number of columns in the table */
+            columns: number;
+            /** @description The number of rows in the table */
+            rows: number;
+            importance: components["schemas"]["NodeImportance"];
+            /** @description A list of cells in the table */
+            cells: components["schemas"]["NodeTableCell"][];
+            /** @description A list of insights for the table */
+            insights: components["schemas"]["NodeInsight"][];
+        };
+        PaperTableNode: {
             /** Format: uuid */
             id: string;
             /** @description The position of the node in the paper */
             position: number;
             /** @description The page number of the node in the paper */
             page: number;
-            /**
-             * @description The type of the node
-             * @enum {string}
-             */
-            type: "unknown" | "abstract" | "algorithm" | "aside_text" | "chart" | "content" | "display_formula" | "doc_title" | "figure_title" | "footer" | "footer_image" | "footnote" | "formula_number" | "header" | "header_image" | "image" | "inline_formula" | "number" | "paragraph_title" | "reference" | "reference_content" | "seal" | "table" | "text" | "vertical_text" | "vision_footnote";
             bbox: components["schemas"]["Bbox"];
+            /** @description The plain text content of the node */
+            text: string;
+            /** @description A signed url to a rendered crop of the node region */
+            render: string;
+            meta: components["schemas"]["PaperNodeMeta"];
             /**
              * Format: date-time
              * @description The creation date of the node
              */
             created: string;
+            /**
+             * @description The type of the node
+             * @constant
+             */
+            type: "table";
+            /** @description The extracted table, null when the table was not enriched */
+            data: components["schemas"]["NodeTableData"] | null;
         };
+        NodeChartData: {
+            /**
+             * @description The type of the chart
+             * @enum {string}
+             */
+            type: "bar" | "horizontal_bar" | "grouped_bar" | "stacked_bar" | "line" | "area" | "stacked_area" | "pie" | "donut" | "scatter" | "bubble" | "histogram" | "box_plot" | "waterfall" | "funnel" | "radar" | "heatmap" | "treemap" | "gauge" | "combo" | "other";
+            /** @description The title of the chart, if available */
+            title?: string;
+            /** @description A short alt text for the chart */
+            alt: string;
+            /** @description A short summary of the chart */
+            summary: string;
+            /** @description A list of tags for the chart */
+            tags: string[];
+            /** @description The source of the chart, if available */
+            source?: string;
+            importance: components["schemas"]["NodeImportance"];
+            /** @description A list of insights for the chart */
+            insights: components["schemas"]["NodeInsight"][];
+        };
+        PaperChartNode: {
+            /** Format: uuid */
+            id: string;
+            /** @description The position of the node in the paper */
+            position: number;
+            /** @description The page number of the node in the paper */
+            page: number;
+            bbox: components["schemas"]["Bbox"];
+            /** @description The plain text content of the node */
+            text: string;
+            /** @description A signed url to a rendered crop of the node region */
+            render: string;
+            meta: components["schemas"]["PaperNodeMeta"];
+            /**
+             * Format: date-time
+             * @description The creation date of the node
+             */
+            created: string;
+            /**
+             * @description The type of the node
+             * @constant
+             */
+            type: "chart";
+            /** @description The chart classification, null when the chart was not enriched */
+            data: components["schemas"]["NodeChartData"] | null;
+        };
+        NodeImageObject: {
+            /** @description The name of the object */
+            name: string;
+            bbox?: components["schemas"]["Bbox"];
+        };
+        NodeImageEntity: {
+            /** @enum {string} */
+            type: "company" | "product" | "technology" | "organization" | "location" | "person" | "document" | "other";
+            /** @description The name of the entity */
+            name: string;
+            bbox?: components["schemas"]["Bbox"];
+        };
+        NodeImageData: {
+            /** @enum {string} */
+            type: "photo" | "screenshot" | "diagram" | "flowchart" | "chart" | "graph" | "table" | "map" | "illustration" | "logo" | "signature" | "barcode" | "qr" | "equation" | "handwriting" | "icon" | "other";
+            /** @description A short title for the image classification */
+            title: string;
+            /** @description A short alt text for the image */
+            alt: string;
+            importance: components["schemas"]["NodeImportance"];
+            /** @description A list of tags for the image */
+            tags: string[];
+            /** @description A list of detected objects in the image */
+            objects: components["schemas"]["NodeImageObject"][];
+            /** @description A list of detected entities in the image */
+            entities: components["schemas"]["NodeImageEntity"][];
+        };
+        PaperImageNode: {
+            /** Format: uuid */
+            id: string;
+            /** @description The position of the node in the paper */
+            position: number;
+            /** @description The page number of the node in the paper */
+            page: number;
+            bbox: components["schemas"]["Bbox"];
+            /** @description The plain text content of the node */
+            text: string;
+            /** @description A signed url to a rendered crop of the node region */
+            render: string;
+            meta: components["schemas"]["PaperNodeMeta"];
+            /**
+             * Format: date-time
+             * @description The creation date of the node
+             */
+            created: string;
+            /**
+             * @description The type of the node
+             * @enum {string}
+             */
+            type: "image" | "header_image" | "footer_image";
+            /** @description The image classification, null when the image was not enriched */
+            data: components["schemas"]["NodeImageData"] | null;
+        };
+        NodeTitleData: {
+            /** @description The estimated heading level of the title */
+            level: number;
+        };
+        PaperTitleNode: {
+            /** Format: uuid */
+            id: string;
+            /** @description The position of the node in the paper */
+            position: number;
+            /** @description The page number of the node in the paper */
+            page: number;
+            bbox: components["schemas"]["Bbox"];
+            /** @description The plain text content of the node */
+            text: string;
+            /** @description A signed url to a rendered crop of the node region */
+            render: string;
+            meta: components["schemas"]["PaperNodeMeta"];
+            /**
+             * Format: date-time
+             * @description The creation date of the node
+             */
+            created: string;
+            /**
+             * @description The type of the node
+             * @enum {string}
+             */
+            type: "doc_title" | "paragraph_title";
+            /** @description The title data, null when no level was estimated */
+            data: components["schemas"]["NodeTitleData"] | null;
+        };
+        PaperTextNode: {
+            /** Format: uuid */
+            id: string;
+            /** @description The position of the node in the paper */
+            position: number;
+            /** @description The page number of the node in the paper */
+            page: number;
+            bbox: components["schemas"]["Bbox"];
+            /** @description The plain text content of the node */
+            text: string;
+            /** @description A signed url to a rendered crop of the node region */
+            render: string;
+            meta: components["schemas"]["PaperNodeMeta"];
+            /**
+             * Format: date-time
+             * @description The creation date of the node
+             */
+            created: string;
+            /**
+             * @description The type of the node
+             * @enum {string}
+             */
+            type: "unknown" | "abstract" | "algorithm" | "aside_text" | "content" | "display_formula" | "figure_title" | "footer" | "footnote" | "formula_number" | "header" | "inline_formula" | "number" | "reference" | "reference_content" | "seal" | "text" | "vertical_text" | "vision_footnote";
+            /** @description Text nodes carry no extra data */
+            data: null;
+        };
+        PaperNode: components["schemas"]["PaperTableNode"] | components["schemas"]["PaperChartNode"] | components["schemas"]["PaperImageNode"] | components["schemas"]["PaperTitleNode"] | components["schemas"]["PaperTextNode"];
         /** @enum {string} */
         PaperStatus: "pending" | "ready" | "failed" | "deleted";
         /** @description Free-form metadata. Values can be strings, numbers, booleans, arrays of a single type, or objects nested up to 3 levels. */
@@ -392,7 +622,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaperNode"];
+                    "application/json": components["schemas"]["PaperNode"][];
                 };
             };
         };
@@ -627,10 +857,22 @@ export interface operations {
                 metadata?: {
                     [key: string]: unknown;
                 };
+                next?: string;
+                prev?: string;
                 query: string;
                 mode?: "fulltext" | "hybrid" | "semantic";
+                /** @description Expand the query with synonyms before searching */
+                expand?: string;
+                /** @description Rerank the results by relevance to the query */
+                rerank?: string;
             };
-            header?: never;
+            header?: {
+                /**
+                 * @description Use text/event-stream to receive the search steps (expanded, results, reranking) as they happen.
+                 * @example text/event-stream
+                 */
+                Accept?: "application/json" | "text/event-stream";
+            };
             path?: never;
             cookie?: never;
         };
@@ -648,6 +890,7 @@ export interface operations {
                             content: string;
                             score?: number;
                             distance?: number;
+                            relevance?: number;
                             matches: {
                                 /** @constant */
                                 type: "token";
@@ -686,6 +929,7 @@ export interface operations {
                             prev?: string;
                         };
                     };
+                    "text/event-stream": string;
                 };
             };
         };
