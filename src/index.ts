@@ -33,3 +33,23 @@ export type {
   SearchResult,
   SearchResultItem,
 } from "./types/search";
+export {
+  AlreadyExists,
+  BadRequest,
+  Conflict,
+  EntityTooLarge,
+  ErrorName,
+  InternalError,
+  InvalidData,
+  NotFound,
+  NotImplemented,
+  PaperfulError,
+  PermissionDenied,
+  ServiceUnavailable,
+  TimedOut,
+  TooManyRequests,
+  Unauthorized,
+  UnsupportedMediaType,
+  ValidationError,
+} from "./utils/error";
+export type { ErrorSingle } from "./utils/error";

@@ -215,7 +215,7 @@ export class InvalidData extends PaperfulError {
 }
 
 export class InternalError extends PaperfulError {
-  override status = 422;
+  override status = 500;
   constructor(message?: string, params?: ErrorParams) {
     super(message, params);
     this.name = ErrorName.InternalError;
