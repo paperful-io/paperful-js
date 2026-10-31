@@ -1,6 +1,11 @@
 import type { Paperful } from "../client";
+import { SearchItem } from "../models/search";
 import type { MetadataFilter } from "../types/paper";
-import type { SearchEvent, SearchResult } from "../types/search";
+import type {
+  SearchEvent,
+  SearchResult,
+  SearchResults,
+} from "../types/search";
 import { hydrateError, type DehydratedError } from "../utils/error";
 
 export class Search {
@@ -20,6 +25,11 @@ export class Search {
    * const next = await paperful.search.query("total amount", {
    *   next: cursor?.next,
    * });
+   *
+   * @example
+   * // the result and the nodes around it, in a single request
+   * const { items } = await paperful.search.query("revenue in europe");
+   * const context = await items[0]?.context({ before: 3, after: 3 });
    *
    * @example
    * // show the results before they are reranked
@@ -71,7 +81,7 @@ export class Search {
        */
       onEvent?: (event: SearchEvent) => void;
     } = {},
-  ): Promise<SearchResult> {
+  ): Promise<SearchResults> {
     const { onEvent, ...rest } = params;
 
     const request = {
@@ -82,20 +92,40 @@ export class Search {
       },
     };
 
-    if (!onEvent) return await this.client.request<SearchResult>(request);
+    if (!onEvent)
+      return this.toResults(
+        await this.client.request<SearchResult>(request),
+      );
 
     const stream = this.client.stream<
-      SearchEvent | { event: "failed"; data: { error: DehydratedError } }
+      | { event: "started" | "expanded"; data: {} }
+      | { event: "reranking"; data: { count: number } }
+      | { event: "results" | "completed"; data: SearchResult }
+      | { event: "failed"; data: { error: DehydratedError } }
     >(request);
 
     for await (const { event, data } of stream) {
       if (event === "failed") throw hydrateError(data.error);
 
-      onEvent({ event, data } as SearchEvent);
+      if (event === "results" || event === "completed") {
+        const results = this.toResults(data);
 
-      if (event === "completed") return data;
+        onEvent({ event, data: results });
+
+        if (event === "completed") return results;
+        continue;
+      }
+
+      onEvent({ event, data } as SearchEvent);
     }
 
     throw new Error("Paperful API error: search stream ended unexpectedly");
+  }
+
+  private toResults(result: SearchResult): SearchResults {
+    return {
+      ...result,
+      items: result.items.map((item) => new SearchItem(item, this.client)),
+    };
   }
 }

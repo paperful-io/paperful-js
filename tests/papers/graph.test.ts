@@ -140,7 +140,9 @@ describe("papers / graph", () => {
     expect(context.map(({ id }) => id)).toContain(node.id);
     for (const item of context) {
       expect(item).toBeInstanceOf(PaperNode);
-      expect(item.graph).toBe(graph);
+      // a partial graph of the same paper, its neighbours are fetched on demand
+      expect(item.graph.partial).toBe(true);
+      expect(item.graph.paperId).toBe(graph.paperId);
     }
   });
 

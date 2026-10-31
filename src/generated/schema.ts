@@ -616,6 +616,8 @@ export interface operations {
             query?: {
                 before?: number;
                 after?: number;
+                /** @description Extend the context to this node, e.g. the last node of a search result. */
+                until?: string;
             };
             header?: never;
             path: {

@@ -56,7 +56,23 @@ describe("papers / render", () => {
     expect(image.size).toBeGreaterThan(0);
   });
 
-  test("not found", async () => {
+  test("from a node", async () => {
+    const graph = await paperful.papers.graph(uploaded!.id);
+    const node = graph.nodes[0]!;
+
+    const image = await node.render();
+
+    expect(image.type).toBe("image/webp");
+    expect(image.size).toBeGreaterThan(0);
+
+    const png = await node.render({ size: 200, format: "png" });
+
+    expect([...new Uint8Array(await png.arrayBuffer()).slice(0, 4)]).toEqual(
+      PngSignature,
+    );
+  });
+
+    test("not found", async () => {
     expect(
       paperful.papers.render(crypto.randomUUID(), { size: 200 }),
     ).rejects.toBeInstanceOf(NotFound);

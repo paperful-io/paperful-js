@@ -75,3 +75,20 @@ export type PaperRenderParams = {
       extract?: never;
     }
 );
+
+/**
+ * Render the region of a node, its page and crop come from the node.
+ */
+export type PaperNodeRenderParams = {
+  /**
+   * A single dimension or `[width, height]`. Use `-1` to keep the original
+   * size on that axis.
+   *
+   * @default 900
+   */
+  size?: number | [number, number];
+  /**
+   * @default "webp"
+   */
+  format?: PaperRenderFormat;
+};

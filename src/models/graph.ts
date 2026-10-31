@@ -6,6 +6,10 @@ import type {
   PaperGraphParams,
   PaperNodeSchema,
 } from "../types/graph";
+import type { PaperNodeRenderParams } from "../types/paper";
+
+type ContextResponse =
+  operations["getPaperGraphNodeContext"]["responses"]["200"]["content"]["application/json"];
 
 export class PaperNode<N extends PaperNodeSchema = PaperNodeSchema> {
   readonly id: string;
@@ -70,6 +74,8 @@ export class PaperNode<N extends PaperNodeSchema = PaperNodeSchema> {
       return this.graph.nodes[index + 1];
     }
 
+    if (this.graph.partial) return await this.graph.adjacent(this, "next");
+
     const fetched = await this.graph.next();
     return fetched[0];
   }
@@ -86,6 +92,9 @@ export class PaperNode<N extends PaperNodeSchema = PaperNodeSchema> {
       return this.graph.nodes[index - 1];
     }
 
+    if (this.graph.partial)
+      return await this.graph.adjacent(this, "previous");
+
     const fetched = await this.graph.previous();
     return fetched[fetched.length - 1];
   }
@@ -93,23 +102,71 @@ export class PaperNode<N extends PaperNodeSchema = PaperNodeSchema> {
   /**
    * Retrieves the context surrounding this node.
    */
-  async context({
-    before,
-    after,
-  }: { before?: number; after?: number } = {}): Promise<AnyPaperNode[]> {
-    const nodes = await this.graph.client.request<
-      operations["getPaperGraphNodeContext"]["responses"]["200"]["content"]["application/json"]
-    >({
-      path: `/papers/${this.graph.paperId}/nodes/${this.id}/context`,
-      query: { before, after },
-      init: {
-        method: "GET",
-      },
+  async context(
+    params: { before?: number; after?: number } = {},
+  ): Promise<AnyPaperNode[]> {
+    return await getNodeContext({
+      client: this.graph.client,
+      paperId: this.graph.paperId,
+      nodeId: this.id,
+      ...params,
     });
+  }
 
-    return nodes.map((node) => toPaperNode(node, this.graph));
+  /**
+   * Renders the region of this node as an image.
+   *
+   * @example
+   * const image = await node.render();
+   * const png = await node.render({ size: 600, format: "png" });
+   */
+  async render({ size = 900, format }: PaperNodeRenderParams = {}) {
+    return await this.graph.client.papers.render(this.graph.paperId, {
+      node: this.id,
+      size,
+      format,
+    });
   }
 }
+
+/**
+ * Fetches the nodes around a node, or around a range of nodes with `untilId`.
+ * They belong to a partial graph, which fetches their neighbours on demand.
+ */
+export const getNodeContext = async ({
+  client,
+  paperId,
+  nodeId,
+  untilId,
+  before,
+  after,
+}: {
+  client: Paperful;
+  paperId: string;
+  nodeId: string;
+  untilId?: string;
+  before?: number;
+  after?: number;
+}): Promise<AnyPaperNode[]> => {
+  const nodes = await client.request<ContextResponse>({
+    path: `/papers/${paperId}/nodes/${nodeId}/context`,
+    query: { before, after, until: untilId },
+    init: {
+      method: "GET",
+    },
+  });
+
+  const graph = new PaperGraph({
+    nodes,
+    total: nodes.length,
+    cursor: {},
+    paperId,
+    client,
+    partial: true,
+  });
+
+  return graph.nodes;
+};
 
 /**
  * A union of `PaperNode`s, one per node type, so checking `node.type` narrows
@@ -134,6 +191,12 @@ export class PaperGraph {
    */
   readonly params: PaperGraphParams;
 
+  /**
+   * Only part of the paper is loaded, e.g. the context of a node, and
+   * `total` is the number of loaded nodes. Neighbours are fetched one by one.
+   */
+  readonly partial: boolean;
+
   constructor({
     nodes,
     total,
@@ -141,6 +204,7 @@ export class PaperGraph {
     paperId,
     client,
     params = {},
+    partial = false,
   }: {
     nodes: PaperNodeSchema[];
     total: number;
@@ -148,6 +212,7 @@ export class PaperGraph {
     paperId: string;
     client: Paperful;
     params?: PaperGraphParams;
+    partial?: boolean;
   }) {
     this.nodes = nodes.map((node) => toPaperNode(node, this));
     this.total = total;
@@ -155,6 +220,43 @@ export class PaperGraph {
     this.paperId = paperId;
     this.client = client;
     this.params = params;
+    this.partial = partial;
+  }
+
+  /**
+   * Fetches the node next to one at the edge of a partial graph.
+   *
+   * @internal
+   */
+  async adjacent(
+    node: PaperNode,
+    direction: "next" | "previous",
+  ): Promise<AnyPaperNode | undefined> {
+    const next = direction === "next";
+
+    const nodes = await this.client.request<ContextResponse>({
+      path: `/papers/${this.paperId}/nodes/${node.id}/context`,
+      query: next ? { before: 0, after: 1 } : { before: 1, after: 0 },
+      init: {
+        method: "GET",
+      },
+    });
+
+    const found = nodes.find((item) =>
+      next ? item.position > node.position : item.position < node.position,
+    );
+
+    // the end of the paper
+    if (!found) return undefined;
+
+    const adjacent = toPaperNode(found, this);
+
+    if (next) this.nodes.push(adjacent);
+    else this.nodes.unshift(adjacent);
+
+    this.total = this.nodes.length;
+
+    return adjacent;
   }
 
   /**

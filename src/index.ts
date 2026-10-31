@@ -1,5 +1,6 @@
 export { Paperful } from "./client";
 export { PaperGraph, PaperNode } from "./models/graph";
+export { SearchItem } from "./models/search";
 export type { AnyPaperNode } from "./models/graph";
 export type {
   NodeChartData,
@@ -26,6 +27,7 @@ export type {
   MetadataFilter,
   MetadataFilterValue,
   PaperMetadata,
+  PaperNodeRenderParams,
   PaperRenderFormat,
   PaperRenderParams,
   PaperUploadEvent,
@@ -34,6 +36,7 @@ export type {
   SearchEvent,
   SearchResult,
   SearchResultItem,
+  SearchResults,
 } from "./types/search";
 export {
   AlreadyExists,
