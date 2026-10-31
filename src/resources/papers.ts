@@ -5,6 +5,7 @@ import type { PaperGraphParams } from "../types/graph";
 import type {
   MetadataFilter,
   PaperMetadata,
+  PaperRenderParams,
   PaperUploadEvent,
 } from "../types/paper";
 import {
@@ -211,6 +212,41 @@ export class Papers {
       ) ?? id,
       { type: response.headers.get("content-type") ?? undefined },
     );
+  }
+
+  /**
+   * Renders a page of a paper, a region of it, or the region of a node as an
+   * image.
+   *
+   * @example
+   * const image = await paperful.papers.render(id, {
+   *   size: 900,
+   *   page: 2,
+   *   format: "png",
+   * });
+   * await Bun.write("page-2.png", image);
+   */
+  async render(
+    id: string,
+    { size, format = "webp", extract, ...params }: PaperRenderParams,
+  ): Promise<Blob> {
+    const response = await this.client.raw({
+      path: `/papers/${id}/render`,
+      query: {
+        ...params,
+        // the api reads `900x1200` and a json encoded region, not the default serialization
+        size: Array.isArray(size) ? size.join("x") : size,
+        extract: extract && JSON.stringify(extract),
+      },
+      init: {
+        method: "GET",
+        headers: { Accept: `image/${format}` },
+      },
+    });
+
+    return new Blob([await response.arrayBuffer()], {
+      type: response.headers.get("content-type") ?? `image/${format}`,
+    });
   }
 
   /**

@@ -37,6 +37,7 @@ export enum ErrorName {
   ServiceUnavailable = "service-unavailable",
   Validation = "validation",
   TimedOut = "timed-out",
+  InsufficientCredits = "insufficient-credits",
 }
 
 export function hydrateError(error: DehydratedError) {
@@ -247,6 +248,14 @@ export class TimedOut extends PaperfulError {
   }
 }
 
+export class InsufficientCredits extends PaperfulError {
+  override status = 402;
+  constructor(message?: string, params?: ErrorParams) {
+    super(message, params);
+    this.name = ErrorName.InsufficientCredits;
+  }
+}
+
 export const ErrorByName = {
   [ErrorName.NotFound]: NotFound,
   [ErrorName.Unauthorized]: Unauthorized,
@@ -263,11 +272,13 @@ export const ErrorByName = {
   [ErrorName.ServiceUnavailable]: ServiceUnavailable,
   [ErrorName.Validation]: ValidationError,
   [ErrorName.TimedOut]: TimedOut,
+  [ErrorName.InsufficientCredits]: InsufficientCredits,
 };
 
 const ErrorByStatus: Record<number, new (message?: string) => PaperfulError> = {
   400: BadRequest,
   401: Unauthorized,
+  402: InsufficientCredits,
   403: PermissionDenied,
   404: NotFound,
   408: TimedOut,

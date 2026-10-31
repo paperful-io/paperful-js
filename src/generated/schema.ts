@@ -156,6 +156,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/papers/{id}/render": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Render a Paper
+         * @description Render a page of a paper, or a region of it, as an image. Pass `node` to render the region of a node. The image format is picked from the `Accept` header, defaulting to WebP.
+         */
+        get: operations["renderPaper"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/papers/{id}/metadata": {
         parameters: {
             query?: never;
@@ -816,6 +836,65 @@ export interface operations {
                 };
             };
             /** @description Paper file not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    renderPaper: {
+        parameters: {
+            query: {
+                /** @description Output size. A single dimension, e.g. `900`, or width and height as a JSON array or string, e.g. `[900,1200]` or `900x1200`. Use `-1` to keep the original size on that axis. */
+                size: string;
+                /** @description The page to render, defaults to the first page. */
+                page?: number;
+                /** @description JSON encoded region of the page to crop, e.g. `{"x":0.1,"y":0.2,"w":0.3,"h":0.4}`. */
+                extract?: string;
+                /** @description Render the region of a node, fills `page` and `extract` from the node. */
+                node?: string;
+            };
+            header?: {
+                /**
+                 * @description The image format to render, defaults to image/webp.
+                 * @example image/png
+                 */
+                Accept?: "image/webp" | "image/jpeg" | "image/png";
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paper rendered successfully. */
+            200: {
+                headers: {
+                    /** @description How long the render can be cached for. */
+                    "cache-control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                    "image/jpeg": string;
+                    "image/png": string;
+                };
+            };
+            /** @description Insufficient credits. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        type?: string;
+                    };
+                };
+            };
+            /** @description Paper or node not found. */
             404: {
                 headers: {
                     [name: string]: unknown;

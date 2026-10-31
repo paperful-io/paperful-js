@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  InsufficientCredits,
   InternalError,
   NotFound,
   PaperfulError,
@@ -26,7 +27,24 @@ describe("utils / errorFromResponse", () => {
     expect(error.many?.next?.message).toBe("Invalid cursor");
   });
 
-  test("from the status", async () => {
+  test("insufficient credits", async () => {
+    const error = await errorFromResponse(
+      Response.json(
+        { error: { type: "insufficient-credits" } },
+        { status: 402 },
+      ),
+    );
+
+    expect(error).toBeInstanceOf(InsufficientCredits);
+    expect(error.status).toBe(402);
+
+    // from the status alone as well
+    expect(
+      await errorFromResponse(new Response(null, { status: 402 })),
+    ).toBeInstanceOf(InsufficientCredits);
+  });
+
+    test("from the status", async () => {
     const error = await errorFromResponse(new Response(null, { status: 404 }));
 
     expect(error).toBeInstanceOf(NotFound);

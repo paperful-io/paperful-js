@@ -38,3 +38,40 @@ export type MetadataFilterValue =
  * `{ category: ["invoice", "receipt"], amount: { gte: 100 } }`.
  */
 export type MetadataFilter = Record<string, MetadataFilterValue>;
+
+export type PaperRenderFormat = "webp" | "jpeg" | "png";
+
+/**
+ * Render a page, a region of it with `extract`, or the region of a `node`.
+ */
+export type PaperRenderParams = {
+  /**
+   * A single dimension, e.g. `900`, or `[width, height]`. Use `-1` to keep
+   * the original size on that axis.
+   */
+  size: number | [number, number];
+  /**
+   * @default "webp"
+   */
+  format?: PaperRenderFormat;
+} & (
+  | {
+      /**
+       * The page to render, defaults to the first page.
+       */
+      page?: number;
+      /**
+       * Region of the page to crop, relative to its size (0 to 1).
+       */
+      extract?: { x: number; y: number; w: number; h: number };
+      node?: never;
+    }
+  | {
+      /**
+       * Renders the region of a node, its page and crop come from the node.
+       */
+      node: string;
+      page?: never;
+      extract?: never;
+    }
+);

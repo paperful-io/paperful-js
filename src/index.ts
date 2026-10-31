@@ -26,6 +26,8 @@ export type {
   MetadataFilter,
   MetadataFilterValue,
   PaperMetadata,
+  PaperRenderFormat,
+  PaperRenderParams,
   PaperUploadEvent,
 } from "./types/paper";
 export type {
@@ -39,6 +41,7 @@ export {
   Conflict,
   EntityTooLarge,
   ErrorName,
+  InsufficientCredits,
   InternalError,
   InvalidData,
   NotFound,
