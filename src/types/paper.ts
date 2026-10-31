@@ -2,6 +2,10 @@ import type { components } from "../generated/schema";
 
 export type PaperUploadEvent =
   | { event: "started"; data: {} }
+  /** Waiting for a free processing slot in the workspace */
+  | { event: "queued"; data: {} }
+  /** Picked up from the queue, processing began */
+  | { event: "processing"; data: {} }
   | {
       event: "completed";
       data: components["schemas"]["Paper"];
