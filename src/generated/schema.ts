@@ -308,8 +308,6 @@ export interface components {
             bbox: components["schemas"]["Bbox"];
             /** @description The plain text content of the node */
             text: string;
-            /** @description A signed url to a rendered crop of the node region */
-            render: string;
             meta: components["schemas"]["PaperNodeMeta"];
             /**
              * Format: date-time
@@ -354,8 +352,6 @@ export interface components {
             bbox: components["schemas"]["Bbox"];
             /** @description The plain text content of the node */
             text: string;
-            /** @description A signed url to a rendered crop of the node region */
-            render: string;
             meta: components["schemas"]["PaperNodeMeta"];
             /**
              * Format: date-time
@@ -407,8 +403,6 @@ export interface components {
             bbox: components["schemas"]["Bbox"];
             /** @description The plain text content of the node */
             text: string;
-            /** @description A signed url to a rendered crop of the node region */
-            render: string;
             meta: components["schemas"]["PaperNodeMeta"];
             /**
              * Format: date-time
@@ -437,8 +431,6 @@ export interface components {
             bbox: components["schemas"]["Bbox"];
             /** @description The plain text content of the node */
             text: string;
-            /** @description A signed url to a rendered crop of the node region */
-            render: string;
             meta: components["schemas"]["PaperNodeMeta"];
             /**
              * Format: date-time
@@ -463,8 +455,6 @@ export interface components {
             bbox: components["schemas"]["Bbox"];
             /** @description The plain text content of the node */
             text: string;
-            /** @description A signed url to a rendered crop of the node region */
-            render: string;
             meta: components["schemas"]["PaperNodeMeta"];
             /**
              * Format: date-time

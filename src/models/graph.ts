@@ -31,11 +31,6 @@ export class PaperNode<N extends PaperNodeSchema = PaperNodeSchema> {
    */
   readonly refs: NodeTextRef[];
 
-  /**
-   * A signed path to a rendered crop of the node region.
-   */
-  readonly render: string;
-
   readonly graph: PaperGraph;
 
   constructor({ node, graph }: { node: N; graph: PaperGraph }) {
@@ -48,7 +43,6 @@ export class PaperNode<N extends PaperNodeSchema = PaperNodeSchema> {
     this.data = node.data;
     this.text = node.text;
     this.refs = node.meta.refs;
-    this.render = node.render;
     this.graph = graph;
   }
 

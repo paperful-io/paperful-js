@@ -77,7 +77,6 @@ describe("papers / graph", () => {
         type: "unknown",
         bbox: { x: 0, y: 0, w: 0, h: 0 },
         text: "",
-        render: "",
         meta: { refs: [] },
         data: null,
         created: new Date().toISOString(),
@@ -121,14 +120,13 @@ describe("papers / graph", () => {
     expect(fetched).toEqual([]);
   });
 
-  test("nodes expose text, refs and render", async () => {
+  test("nodes expose text and refs", async () => {
     const graph = await paperful.papers.graph(uploaded!.id);
     const node = graph.nodes.find((node) => node.refs.length > 0)!;
 
     expect(typeof node.text).toBe("string");
     expect(node.text.length).toBeGreaterThan(0);
     expect(node.refs[0]?.c).toBeDefined();
-    expect(typeof node.render).toBe("string");
     expect(JSON.stringify(node.data ?? {})).not.toContain('"_"');
   });
 
